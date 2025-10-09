@@ -12,9 +12,14 @@ import RecommendationChip from "@/components/RecommendationChip";
 import { Lightbulb, BookOpen } from "lucide-react";
 
 const cvTemplates = [
-  { id: "academic", name: "Academic Research", category: "Research & Academia", isPremium: false, preview: "Traditional CV layout" },
-  { id: "scientific", name: "Scientific Publications", category: "Science", isPremium: true, preview: "Publication-focused" },
-  { id: "medical", name: "Medical Professional", category: "Healthcare", isPremium: false, preview: "Clinical experience" },
+  { id: "academic-modern", name: "Academic Modern", category: "Research & Academia", isPremium: false, preview: "Contemporary research CV" },
+  { id: "scientific-publications", name: "Scientific Publications", category: "Science & Research", isPremium: true, preview: "Publication-focused design" },
+  { id: "medical-professional", name: "Medical Professional", category: "Healthcare", isPremium: false, preview: "Clinical experience layout" },
+  { id: "phd-candidate", name: "PhD Candidate", category: "Academia", isPremium: false, preview: "Graduate research focus" },
+  { id: "professor-track", name: "Professor Track", category: "Higher Education", isPremium: true, preview: "Teaching & research balance" },
+  { id: "industry-research", name: "Industry Research", category: "R&D", isPremium: false, preview: "Applied research emphasis" },
+  { id: "grant-focused", name: "Grant Writer", category: "Research Funding", isPremium: true, preview: "Funding & grants highlight" },
+  { id: "international-cv", name: "International CV", category: "Global Academia", isPremium: true, preview: "Multi-region format" },
 ];
 
 export default function CVGenerator() {

@@ -12,12 +12,20 @@ import TemplateCard from "@/components/TemplateCard";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-// Mock templates
+// Latest templates inspired by LinkedIn and job platforms
 const templates = [
-  { id: "modern", name: "Modern Professional", category: "Tech & Engineering", isPremium: false, preview: "Clean modern layout" },
-  { id: "creative", name: "Creative Bold", category: "Design & Marketing", isPremium: true, preview: "Eye-catching design" },
-  { id: "executive", name: "Executive Classic", category: "Management", isPremium: false, preview: "Traditional style" },
-  { id: "minimal", name: "Minimal Clean", category: "All Industries", isPremium: false, preview: "Simple and elegant" },
+  { id: "linkedin-modern", name: "LinkedIn Modern", category: "All Industries", isPremium: false, preview: "LinkedIn-style layout with photo section" },
+  { id: "tech-startup", name: "Tech Startup", category: "Tech & Engineering", isPremium: false, preview: "Clean tech-focused design" },
+  { id: "creative-bold", name: "Creative Bold", category: "Design & Marketing", isPremium: true, preview: "Eye-catching creative layout" },
+  { id: "executive-premium", name: "Executive Premium", category: "Management & Leadership", isPremium: true, preview: "Sophisticated C-level design" },
+  { id: "minimal-clean", name: "Minimal Clean", category: "All Industries", isPremium: false, preview: "Simple ATS-friendly format" },
+  { id: "indeed-classic", name: "Indeed Classic", category: "All Industries", isPremium: false, preview: "Traditional professional style" },
+  { id: "glassdoor-pro", name: "Glassdoor Pro", category: "Business & Finance", isPremium: true, preview: "Professional business format" },
+  { id: "startup-ninja", name: "Startup Ninja", category: "Tech & Startups", isPremium: false, preview: "Dynamic startup-focused design" },
+  { id: "marketing-guru", name: "Marketing Guru", category: "Marketing & Sales", isPremium: true, preview: "Results-driven marketing layout" },
+  { id: "data-scientist", name: "Data Scientist", category: "Data & Analytics", isPremium: false, preview: "Technical skills showcase" },
+  { id: "remote-worker", name: "Remote First", category: "Remote Work", isPremium: false, preview: "Optimized for remote positions" },
+  { id: "career-changer", name: "Career Changer", category: "All Industries", isPremium: true, preview: "Highlights transferable skills" },
 ];
 
 export default function ResumeGenerator() {
