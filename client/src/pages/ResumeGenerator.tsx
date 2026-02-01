@@ -43,12 +43,24 @@ export default function ResumeGenerator() {
   });
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleGenerate = () => {
+    if (
+      !formData.name ||
+      !formData.jobRole ||
+      !formData.email ||
+      !formData.phone ||
+      !formData.skills ||
+      !formData.education
+    ) {
+      alert("Please fill out all required fields correctly.");
+      return;
+    }
     console.log("Generating resume with:", formData);
     setShowPreview(true);
   };
@@ -56,7 +68,7 @@ export default function ResumeGenerator() {
   const handleTemplateSelect = (id: string) => {
     console.log("Template selected:", id);
     setSelectedTemplate(id);
-    setShowPreview(true);
+    setIsEditing(true);
   };
 
   const handleDownload = async () => {
@@ -75,7 +87,7 @@ export default function ResumeGenerator() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      
+
       <main className="flex-grow py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold mb-8">Resume Generator</h1>
@@ -98,35 +110,109 @@ export default function ResumeGenerator() {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="name">Full Name</Label>
-                      <Input id="name" value={formData.name} onChange={(e) => handleInputChange("name", e.target.value)} data-testid="input-name" className="mt-1" />
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (/^[A-Za-z\s]*$/.test(value)) {   //  only letters & spaces allowed
+                            handleInputChange("name", value);
+                          }
+                        }}
+                        data-testid="input-name"
+                        className="mt-1"
+                        placeholder="Enter your full name"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="jobRole">Target Job Role</Label>
-                      <Input id="jobRole" value={formData.jobRole} onChange={(e) => handleInputChange("jobRole", e.target.value)} data-testid="input-job-role" className="mt-1" />
+                      <Input id="jobRole"
+                        value={formData.jobRole}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (/^[A-Za-z\s]*$/.test(value)) { //  only letters & spaces
+                            handleInputChange("jobRole", value);
+                          }
+                        }}
+                        placeholder="e.g. Software Engineer"
+                        required
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} data-testid="input-email-resume" className="mt-1" />
+                      <Input id="email"
+                        type="email"
+                        required
+                        placeholder="Enter your email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        data-testid="input-email-resume"
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="phone">Phone</Label>
-                      <Input id="phone" value={formData.phone} onChange={(e) => handleInputChange("phone", e.target.value)} data-testid="input-phone" className="mt-1" />
+                      <Input id="phone"
+                        value={formData.phone}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (/^\d*$/.test(value)) {   //  only numbers allowed
+                            handleInputChange("phone", value);
+                          }
+                        }}
+                        maxLength={10} // optional, to limit to 10 digits
+                        data-testid="input-phone"
+                        className="mt-1"
+                        placeholder="Enter phone number"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="experience">Work Experience</Label>
-                      <Textarea id="experience" value={formData.experience} onChange={(e) => handleInputChange("experience", e.target.value)} data-testid="textarea-experience" className="mt-1" />
+                      <Textarea id="experience"
+                        value={formData.experience}
+                        onChange={(e) => handleInputChange("experience", e.target.value)}
+                        placeholder="Describe your work experience..."
+                        required
+                        minLength={10} // ensures some content
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="skills">Skills (comma-separated)</Label>
-                      <Input id="skills" value={formData.skills} onChange={(e) => handleInputChange("skills", e.target.value)} data-testid="input-skills" className="mt-1" />
+                      <Input id="skills"
+                        value={formData.skills}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (/^[A-Za-z\s,]*$/.test(value)) { // only letters, commas & spaces
+                            handleInputChange("skills", value);
+                          }
+                        }}
+                        placeholder="e.g. Python, React, AI"
+                        required
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="education">Education</Label>
-                      <Textarea id="education" value={formData.education} onChange={(e) => handleInputChange("education", e.target.value)} data-testid="textarea-education" className="mt-1" />
+                      <Textarea id="education"
+                        value={formData.education}
+                        onChange={(e) => handleInputChange("education", e.target.value)}
+                        placeholder="Your degrees, institutions, etc."
+                        required
+                        minLength={5}
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="achievements">Key Achievements</Label>
-                      <Textarea id="achievements" value={formData.achievements} onChange={(e) => handleInputChange("achievements", e.target.value)} data-testid="textarea-achievements" className="mt-1" />
+                      <Textarea id="achievements"
+                        value={formData.achievements}
+                        onChange={(e) => handleInputChange("achievements", e.target.value)}
+                        placeholder="Awards, recognitions, notable projects..."
+                        required
+                        minLength={5}
+                        className="mt-1" />
                     </div>
                     <Button onClick={handleGenerate} className="w-full" data-testid="button-generate">
                       Generate Resume
@@ -138,69 +224,121 @@ export default function ResumeGenerator() {
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-semibold">Preview</h2>
                     {showPreview && (
-                      <Button onClick={handleDownload} data-testid="button-download">
-                        <Download className="w-4 h-4 mr-2" />
-                        Download PDF
-                      </Button>
+                      <div className="flex gap-2">
+                        {/* Future: Add theme toggle here */}
+                        <Button onClick={handleDownload} data-testid="button-download">
+                          <Download className="w-4 h-4 mr-2" />
+                          Download PDF
+                        </Button>
+                      </div>
                     )}
                   </div>
-                  <div id="resume-preview" className="bg-white text-black p-8 rounded-lg min-h-[600px]" data-testid="preview-resume">
-                    {showPreview ? (
-                      <div className="space-y-4" contentEditable suppressContentEditableWarning>
-                        <h1 className="text-3xl font-bold">{formData.name || "Your Name"}</h1>
-                        <p className="text-lg text-gray-600">{formData.jobRole || "Job Title"}</p>
-                        <div className="text-sm text-gray-600">
-                          <p>{formData.email || "email@example.com"} | {formData.phone || "+1 234 567 8900"}</p>
+                  <div className="bg-slate-100 p-8 rounded-lg overflow-auto flex justify-center min-h-[600px]">
+                    <div
+                      id="resume-preview"
+                      className="bg-white text-black shadow-2xl p-[40px] w-[210mm] min-h-[297mm] mx-auto transform scale-90 origin-top"
+                      data-testid="preview-resume"
+                    >
+                      {showPreview ? (
+                        <div className="space-y-6 font-sans" contentEditable suppressContentEditableWarning>
+                          <div className="border-b-2 border-gray-800 pb-4 mb-6">
+                            <h1 className="text-4xl font-bold uppercase tracking-wide text-gray-900 mb-2">{formData.name || "Your Name"}</h1>
+                            <p className="text-xl text-gray-700 font-medium">{formData.jobRole || "Job Title"}</p>
+                            <div className="mt-3 text-sm text-gray-600 flex gap-4 flex-wrap">
+                              <span>{formData.email || "email@example.com"}</span>
+                              <span>•</span>
+                              <span>{formData.phone || "+1 234 567 8900"}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-5">
+                            <section>
+                              <h2 className="text-lg font-bold uppercase tracking-wider text-gray-800 border-b border-gray-300 mb-3 pb-1">Experience</h2>
+                              <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-sm">
+                                {formData.experience || "Describe your professional experience here..."}
+                              </div>
+                            </section>
+
+                            <section>
+                              <h2 className="text-lg font-bold uppercase tracking-wider text-gray-800 border-b border-gray-300 mb-3 pb-1">Skills</h2>
+                              <p className="text-gray-700 leading-relaxed text-sm">
+                                {formData.skills || "List your key skills..."}
+                              </p>
+                            </section>
+
+                            <section>
+                              <h2 className="text-lg font-bold uppercase tracking-wider text-gray-800 border-b border-gray-300 mb-3 pb-1">Education</h2>
+                              <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-sm">
+                                {formData.education || "List your educational background..."}
+                              </div>
+                            </section>
+
+                            <section>
+                              <h2 className="text-lg font-bold uppercase tracking-wider text-gray-800 border-b border-gray-300 mb-3 pb-1">Achievements</h2>
+                              <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-sm">
+                                {formData.achievements || "Highlight your key achievements..."}
+                              </div>
+                            </section>
+                          </div>
                         </div>
-                        <div>
-                          <h2 className="text-xl font-semibold mb-2">Experience</h2>
-                          <p className="whitespace-pre-wrap">{formData.experience || "Your experience here..."}</p>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4 pt-32">
+                          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                            <Wand2 className="w-8 h-8 text-gray-300" />
+                          </div>
+                          <p className="text-lg">Fill the form and click Generate to preview</p>
                         </div>
-                        <div>
-                          <h2 className="text-xl font-semibold mb-2">Skills</h2>
-                          <p>{formData.skills || "Your skills..."}</p>
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-semibold mb-2">Education</h2>
-                          <p className="whitespace-pre-wrap">{formData.education || "Your education..."}</p>
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-semibold mb-2">Achievements</h2>
-                          <p className="whitespace-pre-wrap">{formData.achievements || "Your achievements..."}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-400">
-                        Fill the form and click Generate to see preview
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </Card>
               </div>
             </TabsContent>
 
             <TabsContent value="template">
-              <div className="mb-8">
-                <h2 className="text-2xl font-semibold mb-4">Choose a Template</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {templates.map(template => (
-                    <VisualTemplatePreview 
-                      key={template.id} 
-                      id={template.id}
-                      name={template.name}
-                      isPremium={template.isPremium}
-                      variant={template.variant}
-                      onSelect={handleTemplateSelect} 
-                    />
-                  ))}
+              {!isEditing ? (
+                <div className="mb-8">
+                  <h2 className="text-2xl font-semibold mb-4">Choose a Template</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {templates.map(template => (
+                      <VisualTemplatePreview
+                        key={template.id}
+                        id={template.id}
+                        name={template.name}
+                        isPremium={template.isPremium}
+                        variant={template.variant}
+                        onSelect={handleTemplateSelect}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              {selectedTemplate && (
-                <EditableTemplateEditor 
-                  variant={templates.find(t => t.id === selectedTemplate)?.variant as any || "minimal"}
-                  templateName={templates.find(t => t.id === selectedTemplate)?.name || "Resume"}
-                />
+              ) : (
+                <div>
+                  <Button variant="ghost" onClick={() => setIsEditing(false)} className="mb-6">
+                    ← Back to Templates
+                  </Button>
+                  <EditableTemplateEditor
+                    variant={templates.find(t => t.id === selectedTemplate)?.variant as any || "minimal"}
+                    templateName={templates.find(t => t.id === selectedTemplate)?.name || "Resume"}
+                    initialData={formData.name ? {
+                      name: formData.name,
+                      jobTitle: formData.jobRole,
+                      email: formData.email,
+                      phone: formData.phone,
+                      linkedin: "",
+                      location: "",
+                      summary: formData.achievements,
+                      experience1Title: "Role",
+                      experience1Company: "Company",
+                      experience1Period: "Period",
+                      experience1Desc: formData.experience,
+                      education: formData.education,
+                      educationSchool: "School/University",
+                      educationYear: "Year",
+                      skills: formData.skills,
+                    } : undefined}
+                  />
+                </div>
               )}
             </TabsContent>
           </Tabs>
