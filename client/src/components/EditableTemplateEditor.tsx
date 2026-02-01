@@ -5,14 +5,37 @@ import { Download, Edit2, Upload, User } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+interface FormData {
+  name: string;
+  jobTitle: string;
+  email: string;
+  phone: string;
+  linkedin: string;
+  location: string;
+  summary: string;
+  experience1Title: string;
+  experience1Company: string;
+  experience1Period: string;
+  experience1Desc: string;
+  experience2Title?: string;
+  experience2Company?: string;
+  experience2Period?: string;
+  experience2Desc?: string;
+  education: string;
+  educationSchool: string;
+  educationYear: string;
+  skills: string;
+}
+
 interface EditableTemplateEditorProps {
   variant: "professional" | "modern-photo" | "executive" | "creative-photo" | "minimal" | "two-column" | "sidebar-photo" | "elegant";
   templateName: string;
+  initialData?: FormData;
 }
 
-export default function EditableTemplateEditor({ variant, templateName }: EditableTemplateEditorProps) {
+export default function EditableTemplateEditor({ variant, templateName, initialData }: EditableTemplateEditorProps) {
   const [photoUrl, setPhotoUrl] = useState<string>("");
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>(initialData || {
     name: "John Smith",
     jobTitle: "Senior Sales Associate",
     email: "john@email.com",
@@ -81,15 +104,15 @@ export default function EditableTemplateEditor({ variant, templateName }: Editab
   const renderProfessionalTemplate = () => (
     <div className="w-full bg-white text-black p-12 min-h-[1100px]">
       <div className="text-center mb-8 pb-6 border-b-2 border-gray-300">
-        <h1 
-          contentEditable 
+        <h1
+          contentEditable
           suppressContentEditableWarning
           onBlur={(e) => setFormData(prev => ({ ...prev, name: e.currentTarget.textContent || "" }))}
           className="font-bold text-4xl mb-2 uppercase tracking-wide"
         >
           {formData.name}
         </h1>
-        <p 
+        <p
           contentEditable
           suppressContentEditableWarning
           onBlur={(e) => setFormData(prev => ({ ...prev, jobTitle: e.currentTarget.textContent || "" }))}
