@@ -10,6 +10,7 @@ import FileUpload from "@/components/FileUpload";
 import ATSScoreCircle from "@/components/ATSScoreCircle";
 import RecommendationChip from "@/components/RecommendationChip";
 import { Lightbulb, BookOpen } from "lucide-react";
+import EditableTemplateEditor from "@/components/EditableTemplateEditor";
 
 const cvTemplates = [
   { id: "academic-professional", name: "Academic Professional", category: "Research & Academia", isPremium: false, variant: "professional" as const, hasPhoto: false },
@@ -27,10 +28,19 @@ export default function CVGenerator() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [uploadedCV, setUploadedCV] = useState<File | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
 
   const handleTemplateSelect = (id: string) => {
     console.log("CV Template selected:", id);
     setSelectedTemplate(id);
+    setIsEditing(false);
+  };
+
+  const handleStartBuilding = () => {
+    if (selectedTemplate) {
+      setIsEditing(true);
+    }
   };
 
   const handleImproveCV = () => {
@@ -45,7 +55,7 @@ export default function CVGenerator() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      
+
       <main className="flex-grow py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold mb-8">CV Generator</h1>
@@ -63,36 +73,48 @@ export default function CVGenerator() {
             </TabsList>
 
             <TabsContent value="create">
-              <div>
-                <h2 className="text-2xl font-semibold mb-4">Choose a CV Template</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                  {cvTemplates.map(template => (
-                    <VisualTemplatePreview 
-                      key={template.id} 
-                      id={template.id}
-                      name={template.name}
-                      isPremium={template.isPremium}
-                      variant={template.variant}
-                      onSelect={handleTemplateSelect} 
-                    />
-                  ))}
-                </div>
+              {!isEditing ? (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-4">Choose a CV Template</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {cvTemplates.map(template => (
+                      <VisualTemplatePreview
+                        key={template.id}
+                        id={template.id}
+                        name={template.name}
+                        isPremium={template.isPremium}
+                        variant={template.variant}
+                        onSelect={handleTemplateSelect}
+                      />
+                    ))}
+                  </div>
 
-                {selectedTemplate && (
-                  <Card className="p-6">
-                    <h3 className="text-xl font-semibold mb-4">Build Your CV</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Template selected: {cvTemplates.find(t => t.id === selectedTemplate)?.name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Start customizing your CV with job-specific questions and content...
-                    </p>
-                    <Button className="mt-4" data-testid="button-start-cv">
-                      Start Building CV
-                    </Button>
-                  </Card>
-                )}
-              </div>
+                  {selectedTemplate && (
+                    <Card className="p-6">
+                      <h3 className="text-xl font-semibold mb-4">Build Your CV</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Template selected: {cvTemplates.find(t => t.id === selectedTemplate)?.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Start customizing your CV with job-specific questions and content...
+                      </p>
+                      <Button className="mt-4" onClick={handleStartBuilding} data-testid="button-start-cv">
+                        Start Building CV
+                      </Button>
+                    </Card>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <Button variant="ghost" onClick={() => setIsEditing(false)} className="mb-4">
+                    ← Back to Templates
+                  </Button>
+                  <EditableTemplateEditor
+                    variant={cvTemplates.find(t => t.id === selectedTemplate)?.variant as any || "minimal"}
+                    templateName={cvTemplates.find(t => t.id === selectedTemplate)?.name || "CV"}
+                  />
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="improve">
