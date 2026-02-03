@@ -59,6 +59,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ATS Analysis endpoint - Advanced AI-powered resume screening
+  app.post("/api/ats-analysis", async (req, res) => {
+    try {
+      const { resumeText, jobDescription, jobRole } = req.body;
+
+      if (!resumeText || !jobDescription) {
+        return res.status(400).json({ message: "Resume text and job description are required" });
+      }
+
+      console.log(`[API] Starting ATS analysis. JD length: ${jobDescription.length}, Resume length: ${resumeText.length}`);
+
+      // Dynamic import to avoid circular dependencies
+      const { performATSAnalysis } = await import("./lib/atsAnalysis");
+
+      const analysis = await performATSAnalysis({
+        resumeText,
+        jobDescription,
+        jobRole,
+      });
+
+      console.log(`[API] ATS analysis complete. Final score: ${analysis.finalScore}, Processing time: ${analysis.processingTime}ms`);
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("ATS Analysis API Error:", error);
+      res.status(500).json({
+        message: error.message || "Internal Server Error",
+        details: "Failed to perform ATS analysis"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

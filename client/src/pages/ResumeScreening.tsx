@@ -1,41 +1,58 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import FileUpload from "@/components/FileUpload";
-import ATSScoreCircle from "@/components/ATSScoreCircle";
-import RecommendationChip from "@/components/RecommendationChip";
-import { Lightbulb, CheckCircle2, AlertCircle, TrendingUp, Loader2 } from "lucide-react";
+import ATSDashboard from "@/components/ats/ATSDashboard";
+import AnalysisProgressIndicator from "@/components/ats/AnalysisProgressIndicator";
+import { AlertCircle } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import mammoth from "mammoth";
+import type { ATSAnalysisResult } from "../../../shared/atsTypes";
 
 // Initialize PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
-interface AnalysisResult {
-  score: number;
-  matchedKeywords: string[];
-  missingKeywords: string[];
-  recommendations: Array<{
-    text: string;
-    icon: any;
-    variant: "default" | "destructive" | "success" | "warning";
-  }>;
-}
+type AnalysisPhaseType = 'idle' | 'extracting' | 'keyword-analysis' | 'semantic-analysis' | 'generating-report' | 'complete' | 'error';
+
+const getAnalysisPhases = (currentPhase: AnalysisPhaseType) => {
+  const phases = [
+    { id: 'extract', name: 'Text Extraction', status: 'pending' as const },
+    { id: 'keyword', name: 'Keyword Analysis', status: 'pending' as const },
+    { id: 'semantic', name: 'Semantic Analysis (SBERT)', status: 'pending' as const },
+    { id: 'report', name: 'Generating Report', status: 'pending' as const },
+  ];
+
+  if (currentPhase === 'idle' || currentPhase === 'error') {
+    return phases;
+  }
+
+  // Update statuses based on current phase
+  const phaseOrder = ['extracting', 'keyword-analysis', 'semantic-analysis', 'generating-report'];
+  const currentIndex = phaseOrder.indexOf(currentPhase);
+
+  return phases.map((phase, index) => {
+    if (index < currentIndex) {
+      return { ...phase, status: 'complete' as const };
+    } else if (index === currentIndex) {
+      return { ...phase, status: 'processing' as const };
+    }
+    return phase;
+  });
+};
 
 export default function ResumeScreening() {
   const [file, setFile] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState("");
   const [jobRole, setJobRole] = useState("");
-  const [ctc, setCtc] = useState("");
-  const [experience, setExperience] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhaseType>('idle');
+  const [result, setResult] = useState<ATSAnalysisResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const extractTextFromPdf = async (file: File): Promise<string> => {
     const arrayBuffer = await file.arrayBuffer();
@@ -57,201 +74,226 @@ export default function ResumeScreening() {
     return result.value;
   };
 
-  const calculateScore = (resumeText: string, jdText: string) => {
-    // 1. Extract Keywords from JD (Simple frequency analysis + stop words removal)
-    const stopWords = new Set(["a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "is", "are", "was", "were", "be", "been", "image", "button", "click", "page"]);
-    const cleanText = (text: string) => text.toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
-
-    const jdKeywords = new Set(cleanText(jdText));
-    const resumeWords = new Set(cleanText(resumeText));
-
-    // 2. Calculate matches
-    const matches = Array.from(jdKeywords).filter(k => resumeWords.has(k));
-    const missing = Array.from(jdKeywords).filter(k => !resumeWords.has(k));
-
-    const matchCount = matches.length;
-    const totalKeywords = jdKeywords.size;
-
-    // 3. Score Calculation (Weighted)
-    // Base score 40 + (match ratio * 60)
-    const matchRatio = totalKeywords > 0 ? matchCount / totalKeywords : 0;
-    let score = Math.round(40 + (matchRatio * 60));
-
-    // Cap score at 95 unless perfect match
-    if (score > 95 && missing.length > 0) score = 95;
-
-    return { score, matches, missing };
-  };
-
-  const generateRecommendations = (score: number, missing: string[]) => {
-    const recs: AnalysisResult['recommendations'] = [];
-
-    if (score < 60) {
-      recs.push({ text: "Low keyword match. Tailor your resume to the JD.", icon: AlertCircle, variant: "destructive" });
-    } else if (score < 80) {
-      recs.push({ text: "Good start, but missing some key skills.", icon: TrendingUp, variant: "warning" });
-    } else {
-      recs.push({ text: "Excellent match! Your profile is strong.", icon: CheckCircle2, variant: "success" });
-    }
-
-    if (missing.length > 0) {
-      const topMissing = missing.slice(0, 5).join(", ");
-      recs.push({ text: `Consider adding: ${topMissing}`, icon: Lightbulb, variant: "warning" });
-    }
-
-    return recs;
-  };
-
   const handleAnalyze = async () => {
     if (!file || !jobDescription) {
-      alert("Please upload a resume and provide a Job Description.");
+      setError("Please upload a resume and provide a Job Description.");
       return;
     }
 
     setIsAnalyzing(true);
+    setError(null);
+    setResult(null);
+    setAnalysisPhase('extracting');
+
     try {
-      let text = "";
+      // Phase 1: Extract text from resume
+      let resumeText = "";
       if (file.type === "application/pdf") {
-        text = await extractTextFromPdf(file);
+        resumeText = await extractTextFromPdf(file);
       } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-        text = await extractTextFromDocx(file);
+        resumeText = await extractTextFromDocx(file);
       } else {
-        alert("Unsupported file type");
-        setIsAnalyzing(false);
-        return;
+        throw new Error("Unsupported file type. Please upload PDF or DOCX.");
       }
 
-      console.log("Extracted Text Length:", text.length);
+      if (!resumeText || resumeText.trim().length === 0) {
+        throw new Error("Could not extract text from the resume. The file may be empty or corrupted.");
+      }
 
-      const { score, matches, missing } = calculateScore(text, jobDescription);
-      const recommendations = generateRecommendations(score, missing);
+      console.log("Extracted Resume Text Length:", resumeText.length);
 
-      setResult({
-        score,
-        matchedKeywords: matches,
-        missingKeywords: missing,
-        recommendations
+      // Phase 2: Keyword Analysis
+      setAnalysisPhase('keyword-analysis');
+      await new Promise(resolve => setTimeout(resolve, 300)); // Brief delay for UI feedback
+
+      // Phase 3: Semantic Analysis & Report Generation
+      setAnalysisPhase('semantic-analysis');
+
+      // Call the ATS analysis API
+      const response = await fetch('/api/ats-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          resumeText,
+          jobDescription,
+          jobRole: jobRole || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Analysis failed');
+      }
+
+      setAnalysisPhase('generating-report');
+      const analysisResult: ATSAnalysisResult = await response.json();
+
+      // Phase 4: Complete
+      setAnalysisPhase('complete');
+      setResult(analysisResult);
+
+      console.log("ATS Analysis Complete:", {
+        finalScore: analysisResult.finalScore,
+        keywordScore: analysisResult.keywordScore.score,
+        semanticScore: analysisResult.semanticScore.score,
+        processingTime: analysisResult.processingTime,
       });
 
     } catch (error: any) {
       console.error("Analysis failed:", error);
-      setResult(null);
-      alert(`Failed to analyze resume: ${error.message || "Unknown error"}`);
+      setError(error.message || "An unexpected error occurred during analysis.");
+      setAnalysisPhase('error');
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleExport = () => {
+    if (!result) return;
+
+    // Create JSON export
+    const dataStr = JSON.stringify(result, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ats-analysis-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleReset = () => {
+    setFile(null);
+    setJobDescription("");
+    setJobRole("");
+    setResult(null);
+    setError(null);
+    setAnalysisPhase('idle');
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <main className="flex-grow py-12">
+      <main className="flex-grow py-12 bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold mb-8">Resume Screening (AI-Powered)</h1>
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              AI-Powered ATS Resume Screening
+            </h1>
+            <p className="text-muted-foreground">
+              Analyze your resume against job descriptions with dual AI scoring: keyword matching + semantic similarity
+            </p>
+          </div>
 
-          <div className="grid lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-4">1. Upload Your Resume</h2>
-                <FileUpload onFileSelect={setFile} accept=".pdf,.docx" maxSize={10} />
-              </Card>
-
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-4">2. Job Details</h2>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="jobRole">Job Role</Label>
-                    <Input
-                      id="jobRole"
-                      placeholder="e.g., Software Engineer"
-                      value={jobRole}
-                      onChange={(e) => setJobRole(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="jobDescription">Job Description (Required)</Label>
-                    <Textarea
-                      id="jobDescription"
-                      placeholder="Paste the full job description here..."
-                      value={jobDescription}
-                      onChange={(e) => setJobDescription(e.target.value)}
-                      className="mt-1 min-h-[150px]"
-                    />
-                  </div>
-                  <Button onClick={handleAnalyze} className="w-full" disabled={isAnalyzing} data-testid="button-analyze">
-                    {isAnalyzing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      "Analyze Resume"
-                    )}
-                  </Button>
-                </div>
-              </Card>
-            </div>
-
-            <div>
-              {result ? (
-                <div className="space-y-6">
-                  <Card className="p-8">
-                    <h2 className="text-xl font-semibold mb-6 text-center">ATS Analysis Results</h2>
-                    <div className="flex justify-center mb-6">
-                      <ATSScoreCircle score={result.score} />
-                    </div>
-                    <p className="text-center text-muted-foreground">
-                      {result.score >= 80 ? "Great job! Your resume matches the job description well." : result.score >= 60 ? "Good match, but room for improvement." : "Low match. Consider tailoring your resume."}
+          {!result ? (
+            <div className="grid lg:grid-cols-2 gap-8">
+              {/* Input Section */}
+              <div className="space-y-6">
+                <Card className="p-6 border-2 hover:border-primary/50 transition-colors">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <span className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
+                    Upload Your Resume
+                  </h2>
+                  <FileUpload onFileSelect={setFile} accept=".pdf,.docx" maxSize={10} />
+                  {file && (
+                    <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
+                      ✓ {file.name}
                     </p>
-                  </Card>
+                  )}
+                </Card>
 
-                  <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Recommendations</h3>
-                    <div className="flex flex-col gap-3">
-                      {result.recommendations.map((rec, idx) => (
-                        <RecommendationChip key={idx} {...rec} />
-                      ))}
+                <Card className="p-6 border-2 hover:border-primary/50 transition-colors">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <span className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
+                    Job Details
+                  </h2>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="jobRole">Job Role (Optional)</Label>
+                      <Textarea
+                        id="jobRole"
+                        placeholder="e.g., Full Stack Developer"
+                        value={jobRole}
+                        onChange={(e) => setJobRole(e.target.value)}
+                        className="mt-1 resize-none"
+                        rows={1}
+                      />
                     </div>
-                  </Card>
-
-                  <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Detailed Breakdown</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Matched Keywords</span>
-                        <span className="font-semibold text-green-600">{result.matchedKeywords.length}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Missing Keywords</span>
-                        <span className="font-semibold text-red-500">{result.missingKeywords.length}</span>
-                      </div>
+                    <div>
+                      <Label htmlFor="jobDescription">Job Description *</Label>
+                      <Textarea
+                        id="jobDescription"
+                        placeholder="Paste the full job description here..."
+                        value={jobDescription}
+                        onChange={(e) => setJobDescription(e.target.value)}
+                        className="mt-1 min-h-[200px] font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {jobDescription.length} characters
+                      </p>
                     </div>
-                    {result.missingKeywords.length > 0 && (
-                      <div className="mt-4">
-                        <p className="text-sm font-semibold mb-2">Missing Keywords:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {result.missingKeywords.slice(0, 10).map(k => (
-                            <span key={k} className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">{k}</span>
-                          ))}
-                          {result.missingKeywords.length > 10 && <span className="text-xs text-muted-foreground">+{result.missingKeywords.length - 10} more</span>}
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                </div>
-              ) : (
-                <Card className="p-12 h-full flex items-center justify-center bg-slate-50 border-dashed">
-                  <div className="text-center text-muted-foreground">
-                    <Lightbulb className="w-12 h-12 mx-auto mb-4 text-yellow-400" />
-                    <p className="text-lg font-medium">Ready to Optimize?</p>
-                    <p className="text-sm mt-2">Upload a resume and paste a job description to see your real-time ATS score.</p>
+                    <Button
+                      onClick={handleAnalyze}
+                      className="w-full h-12 text-lg font-semibold"
+                      disabled={isAnalyzing || !file || !jobDescription}
+                      data-testid="button-analyze"
+                    >
+                      {isAnalyzing ? "Analyzing..." : "Analyze Resume"}
+                    </Button>
                   </div>
                 </Card>
-              )}
+              </div>
+
+              {/* Preview/Status Section */}
+              <div>
+                {isAnalyzing ? (
+                  <Card className="p-8">
+                    <AnalysisProgressIndicator phases={getAnalysisPhases(analysisPhase)} />
+                  </Card>
+                ) : error ? (
+                  <Card className="p-8 border-red-200 bg-red-50">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-6 h-6 text-red-600 mt-1 flex-shrink-0" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-red-900 mb-2">Analysis Failed</h3>
+                        <p className="text-sm text-red-700 mb-4">{error}</p>
+                        <Button onClick={handleReset} variant="outline" size="sm">
+                          Try Again
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ) : (
+                  <Card className="p-12 h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 border-dashed border-2">
+                    <div className="text-center text-muted-foreground">
+                      <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center">
+                        <span className="text-4xl">🎯</span>
+                      </div>
+                      <p className="text-lg font-medium mb-2">Ready to Optimize Your Resume?</p>
+                      <p className="text-sm max-w-md">
+                        Upload your resume and paste a job description to get comprehensive ATS analysis with dual AI scoring.
+                      </p>
+                    </div>
+                  </Card>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button onClick={handleReset} variant="outline">
+                  ← Analyze Another Resume
+                </Button>
+              </div>
+
+              {/* ATS Dashboard */}
+              <ATSDashboard result={result} onExport={handleExport} />
+            </div>
+          )}
         </div>
       </main>
 
