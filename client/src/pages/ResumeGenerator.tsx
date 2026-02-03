@@ -7,6 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import { Download, Wand2 } from "lucide-react";
 import VisualTemplatePreview from "@/components/VisualTemplatePreview";
 import EditableTemplateEditor from "@/components/EditableTemplateEditor";
@@ -30,10 +38,12 @@ const templates = [
 ];
 
 export default function ResumeGenerator() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("automatic");
   const [formData, setFormData] = useState({
     name: "",
     jobRole: "",
+    experienceLevel: "",
     email: "",
     phone: "",
     experience: "",
@@ -44,9 +54,69 @@ export default function ResumeGenerator() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState({
+    experience: false,
+    achievements: false,
+  });
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEnhance = async (section: "experience" | "achievements") => {
+    const originalText = formData[section];
+    if (!originalText || originalText.length < 10) {
+      toast({
+        title: "Content too short",
+        description: "Please enter at least 10 characters to enhance.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.jobRole) {
+      toast({
+        title: "Missing Job Role",
+        description: "Please enter a target job role for better context.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsEnhancing(prev => ({ ...prev, [section]: true }));
+    try {
+      const response = await fetch("/api/enhanced-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          originalText,
+          sectionType: section,
+          jobRole: formData.jobRole,
+          experienceLevel: formData.experienceLevel || "Mid-Level",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Enhancement failed");
+      }
+
+      const data = await response.json();
+      handleInputChange(section, data.enhancedText);
+      toast({
+        title: "Enhancement Successful",
+        description: `Your ${section} section has been optimized for ATS.`,
+      });
+    } catch (error: any) {
+      console.error("Frontend Enhancement Error:", error);
+      toast({
+        title: "Enhancement Failed",
+        description: error.message || "Could not enhance the text. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEnhancing(prev => ({ ...prev, [section]: false }));
+    }
   };
 
   const handleGenerate = () => {
@@ -108,29 +178,50 @@ export default function ResumeGenerator() {
                 <Card className="p-6">
                   <h2 className="text-xl font-semibold mb-4">Tell us about yourself</h2>
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (/^[A-Za-z\s]*$/.test(value)) {   //  only letters & spaces allowed
-                            handleInputChange("name", value);
-                          }
-                        }}
-                        data-testid="input-name"
-                        className="mt-1"
-                        placeholder="Enter your full name"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="name">Full Name</Label>
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (/^[A-Za-z\s]*$/.test(value)) {
+                              handleInputChange("name", value);
+                            }
+                          }}
+                          data-testid="input-name"
+                          className="mt-1"
+                          placeholder="Enter your full name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="experienceLevel">Experience Level</Label>
+                        <Select
+                          value={formData.experienceLevel}
+                          onValueChange={(value) => handleInputChange("experienceLevel", value)}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select Level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Internship">Internship</SelectItem>
+                            <SelectItem value="Entry Level">Entry Level</SelectItem>
+                            <SelectItem value="Mid-Level">Mid-Level</SelectItem>
+                            <SelectItem value="Senior">Senior</SelectItem>
+                            <SelectItem value="Executive">Executive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
+
                     <div>
                       <Label htmlFor="jobRole">Target Job Role</Label>
                       <Input id="jobRole"
                         value={formData.jobRole}
                         onChange={(e) => {
                           const value = e.target.value;
-                          if (/^[A-Za-z\s]*$/.test(value)) { //  only letters & spaces
+                          if (/^[A-Za-z\s]*$/.test(value)) {
                             handleInputChange("jobRole", value);
                           }
                         }}
@@ -157,25 +248,41 @@ export default function ResumeGenerator() {
                         value={formData.phone}
                         onChange={(e) => {
                           const value = e.target.value;
-                          if (/^\d*$/.test(value)) {   //  only numbers allowed
+                          if (/^\d*$/.test(value)) {
                             handleInputChange("phone", value);
                           }
                         }}
-                        maxLength={10} // optional, to limit to 10 digits
+                        maxLength={10}
                         data-testid="input-phone"
                         className="mt-1"
                         placeholder="Enter phone number"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="experience">Work Experience</Label>
+                      <div className="flex justify-between items-center">
+                        <Label htmlFor="experience">Work Experience</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEnhance("experience")}
+                          disabled={!formData.experience || !formData.jobRole || isEnhancing.experience}
+                          className="h-7 text-xs"
+                        >
+                          {isEnhancing.experience ? (
+                            <Wand2 className="w-3 h-3 mr-1 animate-spin" />
+                          ) : (
+                            <Wand2 className="w-3 h-3 mr-1" />
+                          )}
+                          Enhance with AI
+                        </Button>
+                      </div>
                       <Textarea id="experience"
                         value={formData.experience}
                         onChange={(e) => handleInputChange("experience", e.target.value)}
                         placeholder="Describe your work experience..."
                         required
-                        minLength={10} // ensures some content
-                        className="mt-1"
+                        minLength={10}
+                        className="mt-1 min-h-[100px]"
                       />
                     </div>
                     <div>
@@ -184,7 +291,7 @@ export default function ResumeGenerator() {
                         value={formData.skills}
                         onChange={(e) => {
                           const value = e.target.value;
-                          if (/^[A-Za-z\s,]*$/.test(value)) { // only letters, commas & spaces
+                          if (/^[A-Za-z\s,]*$/.test(value)) {
                             handleInputChange("skills", value);
                           }
                         }}
@@ -205,14 +312,30 @@ export default function ResumeGenerator() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="achievements">Key Achievements</Label>
+                      <div className="flex justify-between items-center">
+                        <Label htmlFor="achievements">Key Achievements</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEnhance("achievements")}
+                          disabled={!formData.achievements || !formData.jobRole || isEnhancing.achievements}
+                          className="h-7 text-xs"
+                        >
+                          {isEnhancing.achievements ? (
+                            <Wand2 className="w-3 h-3 mr-1 animate-spin" />
+                          ) : (
+                            <Wand2 className="w-3 h-3 mr-1" />
+                          )}
+                          Enhance with AI
+                        </Button>
+                      </div>
                       <Textarea id="achievements"
                         value={formData.achievements}
                         onChange={(e) => handleInputChange("achievements", e.target.value)}
                         placeholder="Awards, recognitions, notable projects..."
                         required
                         minLength={5}
-                        className="mt-1" />
+                        className="mt-1 min-h-[100px]" />
                     </div>
                     <Button onClick={handleGenerate} className="w-full" data-testid="button-generate">
                       Generate Resume
