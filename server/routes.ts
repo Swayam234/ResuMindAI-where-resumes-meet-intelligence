@@ -35,6 +35,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/generate-summary", async (req, res) => {
+    try {
+      const { jobTitle, name } = req.body;
+
+      if (!jobTitle) {
+        return res.status(400).json({ message: "Job title is required" });
+      }
+
+      console.log(`[API] Generating summary for ${jobTitle}`);
+
+      const summary = await enhanceResumeSection({
+        originalText: `Generate a professional summary for a ${jobTitle}`,
+        sectionType: "summary",
+        jobRole: jobTitle,
+        experienceLevel: "Mid-Level",
+      });
+
+      res.json({ summary });
+    } catch (error: any) {
+      console.error("Summary Generation API Error:", error);
+      res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
