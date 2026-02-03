@@ -124,6 +124,13 @@ export function sanitizeDigits(input: string): string {
 }
 
 /**
+ * Sanitizes input to allow only valid location characters (letters, spaces, commas, periods)
+ */
+export function sanitizeLocation(input: string): string {
+    return input.replace(/[^A-Za-z\s,\.]/g, '');
+}
+
+/**
  * Validates required text with minimum length
  */
 export function validateTextRequired(text: string, fieldName: string, minLength: number = 2): ValidationResult {
@@ -205,10 +212,24 @@ export function validateDateRequired(date: string, fieldName: string): Validatio
 
 /**
  * Validates location field (required)
+ * Location should contain letters and can include spaces, commas, periods
+ * but should not be purely numeric
  */
 export function validateLocation(location: string): ValidationResult {
     if (!location || location.trim() === '') {
         return { isValid: false, error: 'Location is required' };
+    }
+
+    // Location should contain only letters, spaces, commas, and periods
+    const locationRegex = /^[A-Za-z\s,\.]+$/;
+    if (!locationRegex.test(location)) {
+        return { isValid: false, error: 'Location can only contain letters, spaces, commas, and periods' };
+    }
+
+    // Ensure location contains at least one letter (not purely punctuation/spaces)
+    const hasLetter = /[A-Za-z]/.test(location);
+    if (!hasLetter) {
+        return { isValid: false, error: 'Location must contain at least one letter' };
     }
 
     return { isValid: true };

@@ -15,6 +15,7 @@ import {
     validateLocation,
     sanitizeAlphabetsAndSpaces,
     sanitizeDigits,
+    sanitizeLocation,
 } from '@/utils/validationUtils';
 
 interface PersonalInfoStepProps {
@@ -77,7 +78,7 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
         }
     };
 
-    const handleInputChange = (field: keyof typeof personal, value: string, sanitize?: 'alpha' | 'digits') => {
+    const handleInputChange = (field: keyof typeof personal, value: string, sanitize?: 'alpha' | 'digits' | 'location') => {
         let sanitizedValue = value;
 
         if (sanitize === 'alpha') {
@@ -88,6 +89,8 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
             if (sanitizedValue.length > 10) {
                 sanitizedValue = sanitizedValue.slice(0, 10);
             }
+        } else if (sanitize === 'location') {
+            sanitizedValue = sanitizeLocation(value);
         }
 
         handleChange(field, sanitizedValue);
@@ -171,7 +174,7 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                             value={personal.fullName}
                             onChange={(e) => handleInputChange('fullName', e.target.value, 'alpha')}
                             onBlur={() => validateField('fullName', personal.fullName)}
-                            placeholder="John Doe"
+                            placeholder="Suresh Kumar"
                             className={`mt-1 ${fieldErrors.fullName ? 'border-destructive' : ''}`}
                         />
                         {fieldErrors.fullName && (
@@ -209,7 +212,7 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                                 validateField('email', e.target.value);
                             }}
                             onBlur={() => validateField('email', personal.email)}
-                            placeholder="john.doe@example.com"
+                            placeholder="suresh.kumar@example.com"
                             className={`mt-1 ${fieldErrors.email ? 'border-destructive' : ''}`}
                         />
                         {fieldErrors.email && (
@@ -243,12 +246,9 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                         <Input
                             id="location"
                             value={personal.location}
-                            onChange={(e) => {
-                                handleChange('location', e.target.value);
-                                validateField('location', e.target.value);
-                            }}
+                            onChange={(e) => handleInputChange('location', e.target.value, 'location')}
                             onBlur={() => validateField('location', personal.location)}
-                            placeholder="San Francisco, CA"
+                            placeholder="Mumbai"
                             className={`mt-1 ${fieldErrors.location ? 'border-destructive' : ''}`}
                         />
                         {fieldErrors.location && (

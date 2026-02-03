@@ -248,7 +248,7 @@ export default function Contact() {
                     <div>
                       <p className="font-medium">Phone</p>
                       <p className="text-sm text-muted-foreground">
-                        +1 (555) 123-4567
+                        +91 9776543210
                       </p>
                     </div>
                   </div>
@@ -260,8 +260,7 @@ export default function Contact() {
                     <div>
                       <p className="font-medium">Address</p>
                       <p className="text-sm text-muted-foreground">
-                        123 Innovation Drive<br />
-                        San Francisco, CA 94102
+                        Mumbai, Maharashtra
                       </p>
                     </div>
                   </div>
