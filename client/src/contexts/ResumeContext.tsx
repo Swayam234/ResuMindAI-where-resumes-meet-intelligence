@@ -5,6 +5,7 @@ interface ResumeState {
     resumeData: ResumeData;
     currentStep: WizardStep;
     completedSteps: WizardStep[];
+    validationErrors: Record<string, string>;
 }
 
 type ResumeAction =
@@ -32,12 +33,15 @@ type ResumeAction =
     | { type: 'SET_STEP'; payload: WizardStep }
     | { type: 'MARK_STEP_COMPLETE'; payload: WizardStep }
     | { type: 'LOAD_RESUME'; payload: ResumeData }
-    | { type: 'RESET_RESUME' };
+    | { type: 'RESET_RESUME' }
+    | { type: 'SET_VALIDATION_ERROR'; payload: { field: string; error: string } }
+    | { type: 'CLEAR_VALIDATION_ERROR'; payload: string };
 
 const initialState: ResumeState = {
     resumeData: createEmptyResumeData(),
     currentStep: 'personal',
     completedSteps: [],
+    validationErrors: {},
 };
 
 function resumeReducer(state: ResumeState, action: ResumeAction): ResumeState {
@@ -283,6 +287,22 @@ function resumeReducer(state: ResumeState, action: ResumeAction): ResumeState {
         case 'RESET_RESUME':
             return initialState;
 
+        case 'SET_VALIDATION_ERROR':
+            return {
+                ...state,
+                validationErrors: {
+                    ...state.validationErrors,
+                    [action.payload.field]: action.payload.error,
+                },
+            };
+
+        case 'CLEAR_VALIDATION_ERROR':
+            const { [action.payload]: _, ...remainingErrors } = state.validationErrors;
+            return {
+                ...state,
+                validationErrors: remainingErrors,
+            };
+
         default:
             return state;
     }
@@ -291,12 +311,16 @@ function resumeReducer(state: ResumeState, action: ResumeAction): ResumeState {
 interface ResumeContextType {
     state: ResumeState;
     dispatch: React.Dispatch<ResumeAction>;
+    isFormValid: boolean;
 }
 
 const ResumeContext = createContext<ResumeContextType | undefined>(undefined);
 
 export function ResumeProvider({ children }: { children: React.ReactNode }) {
     const [state, dispatch] = useReducer(resumeReducer, initialState);
+
+    // Compute form validity
+    const isFormValid = Object.keys(state.validationErrors).length === 0;
 
     // Auto-save to localStorage
     useEffect(() => {
@@ -321,7 +345,7 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     return (
-        <ResumeContext.Provider value={{ state, dispatch }}>
+        <ResumeContext.Provider value={{ state, dispatch, isFormValid }}>
             {children}
         </ResumeContext.Provider>
     );

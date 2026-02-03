@@ -11,6 +11,11 @@ import { generateId } from '@/types/resume';
 import type { Experience } from '@/types/resume';
 import { useToast } from '@/hooks/use-toast';
 import {
+    validateTextRequired,
+    validateDateRequired,
+    validateDateRange,
+} from '@/utils/validationUtils';
+import {
     DndContext,
     closestCenter,
     KeyboardSensor,
@@ -45,10 +50,12 @@ function ExperienceCard({ experience, onUpdate, onDelete }: {
     onUpdate: (data: Partial<Experience>) => void;
     onDelete: () => void;
 }) {
+    const { dispatch } = useResume();
     const { toast } = useToast();
     const [newResponsibility, setNewResponsibility] = useState('');
     const [enhancingIndex, setEnhancingIndex] = useState<number | null>(null);
     const [showVerbSuggestions, setShowVerbSuggestions] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const {
         attributes,
@@ -121,6 +128,73 @@ function ExperienceCard({ experience, onUpdate, onDelete }: {
         setShowVerbSuggestions(false);
     };
 
+    const validateField = (field: string, value: string | boolean) => {
+        let validationResult;
+        const contextKey = `experience.${experience.id}.${field}`;
+
+        switch (field) {
+            case 'company':
+                validationResult = validateTextRequired(value as string, 'Company', 2);
+                break;
+            case 'role':
+                validationResult = validateTextRequired(value as string, 'Role', 2);
+                break;
+            case 'startDate':
+                validationResult = validateDateRequired(value as string, 'Start date');
+                // Validate date range if end date exists and not currently working
+                if (validationResult.isValid && experience.endDate && !experience.current) {
+                    const rangeResult = validateDateRange(value as string, experience.endDate);
+                    if (!rangeResult.isValid) {
+                        dispatch({ type: 'SET_VALIDATION_ERROR', payload: { field: `experience.${experience.id}.endDate`, error: rangeResult.error || '' } });
+                    } else {
+                        dispatch({ type: 'CLEAR_VALIDATION_ERROR', payload: `experience.${experience.id}.endDate` });
+                    }
+                }
+                break;
+            case 'endDate':
+                if (!experience.current) {
+                    validationResult = validateDateRequired(value as string, 'End date');
+                    if (validationResult.isValid && experience.startDate) {
+                        validationResult = validateDateRange(experience.startDate, value as string);
+                    }
+                } else {
+                    validationResult = { isValid: true };
+                }
+                break;
+            case 'current':
+                // When toggling current, clear endDate error if current is true
+                if (value as boolean) {
+                    dispatch({ type: 'CLEAR_VALIDATION_ERROR', payload: `experience.${experience.id}.endDate` });
+                    setFieldErrors(prev => {
+                        const { endDate: _, ...rest } = prev;
+                        return rest;
+                    });
+                }
+                return;
+            default:
+                return;
+        }
+
+        if (validationResult.isValid) {
+            setFieldErrors(prev => {
+                const { [field]: _, ...rest } = prev;
+                return rest;
+            });
+            dispatch({ type: 'CLEAR_VALIDATION_ERROR', payload: contextKey });
+        } else {
+            setFieldErrors(prev => ({ ...prev, [field]: validationResult.error || '' }));
+            dispatch({
+                type: 'SET_VALIDATION_ERROR',
+                payload: { field: contextKey, error: validationResult.error || '' },
+            });
+        }
+    };
+
+    const handleInputChange = (field: keyof Experience, value: string | boolean) => {
+        onUpdate({ [field]: value });
+        validateField(field, value);
+    };
+
     return (
         <div ref={setNodeRef} style={style} className="relative">
             <Card className="p-4 hover:shadow-md transition-shadow">
@@ -136,47 +210,63 @@ function ExperienceCard({ experience, onUpdate, onDelete }: {
                     <div className="flex-1 space-y-3">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                                <Label className="text-xs">Company</Label>
+                                <Label className="text-xs">Company *</Label>
                                 <Input
                                     value={experience.company}
-                                    onChange={(e) => onUpdate({ company: e.target.value })}
+                                    onChange={(e) => handleInputChange('company', e.target.value)}
+                                    onBlur={() => validateField('company', experience.company)}
                                     placeholder="Company Name"
-                                    className="mt-1"
+                                    className={`mt-1 ${fieldErrors.company ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.company && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.company}</p>
+                                )}
                             </div>
                             <div>
-                                <Label className="text-xs">Role</Label>
+                                <Label className="text-xs">Role *</Label>
                                 <Input
                                     value={experience.role}
-                                    onChange={(e) => onUpdate({ role: e.target.value })}
+                                    onChange={(e) => handleInputChange('role', e.target.value)}
+                                    onBlur={() => validateField('role', experience.role)}
                                     placeholder="Software Engineer"
-                                    className="mt-1"
+                                    className={`mt-1 ${fieldErrors.role ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.role && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.role}</p>
+                                )}
                             </div>
                             <div>
-                                <Label className="text-xs">Start Date</Label>
+                                <Label className="text-xs">Start Date *</Label>
                                 <Input
                                     type="month"
                                     value={experience.startDate}
-                                    onChange={(e) => onUpdate({ startDate: e.target.value })}
-                                    className="mt-1"
+                                    onChange={(e) => handleInputChange('startDate', e.target.value)}
+                                    onBlur={() => validateField('startDate', experience.startDate)}
+                                    className={`mt-1 ${fieldErrors.startDate ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.startDate && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.startDate}</p>
+                                )}
                             </div>
                             <div>
-                                <Label className="text-xs">End Date</Label>
+                                <Label className="text-xs">End Date {!experience.current && '*'}</Label>
                                 <div className="space-y-2">
                                     <Input
                                         type="month"
                                         value={experience.endDate}
-                                        onChange={(e) => onUpdate({ endDate: e.target.value })}
+                                        onChange={(e) => handleInputChange('endDate', e.target.value)}
+                                        onBlur={() => validateField('endDate', experience.endDate)}
                                         disabled={experience.current}
-                                        className="mt-1"
+                                        className={`mt-1 ${fieldErrors.endDate ? 'border-destructive' : ''}`}
                                     />
+                                    {fieldErrors.endDate && (
+                                        <p className="text-xs text-destructive mt-1">{fieldErrors.endDate}</p>
+                                    )}
                                     <div className="flex items-center space-x-2">
                                         <Checkbox
                                             id={`current-${experience.id}`}
                                             checked={experience.current}
-                                            onCheckedChange={(checked) => onUpdate({ current: checked as boolean })}
+                                            onCheckedChange={(checked) => handleInputChange('current', checked as boolean)}
                                         />
                                         <label
                                             htmlFor={`current-${experience.id}`}

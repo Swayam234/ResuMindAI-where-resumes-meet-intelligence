@@ -14,7 +14,7 @@ interface ReviewStepProps {
 }
 
 export default function ReviewStep({ onBack, onEditStep }: ReviewStepProps) {
-    const { state } = useResume();
+    const { state, isFormValid } = useResume();
     const { resumeData } = state;
     const { toast } = useToast();
     const [isExporting, setIsExporting] = useState(false);
@@ -206,7 +206,7 @@ export default function ReviewStep({ onBack, onEditStep }: ReviewStepProps) {
                         </Button>
                         <Button
                             onClick={handleDownloadPDF}
-                            disabled={isExporting || completionPercentage < 50}
+                            disabled={isExporting || completionPercentage < 50 || !isFormValid}
                             size="lg"
                             className="flex-1"
                         >
@@ -227,6 +227,11 @@ export default function ReviewStep({ onBack, onEditStep }: ReviewStepProps) {
                     {completionPercentage < 50 && (
                         <p className="text-sm text-muted-foreground text-center">
                             Complete at least 50% of your resume to download
+                        </p>
+                    )}
+                    {!isFormValid && completionPercentage >= 50 && (
+                        <p className="text-sm text-destructive text-center">
+                            Please fix all validation errors before downloading your resume
                         </p>
                     )}
                 </div>

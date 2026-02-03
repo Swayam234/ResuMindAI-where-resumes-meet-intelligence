@@ -8,6 +8,12 @@ import { Plus, GripVertical, Trash2 } from 'lucide-react';
 import { generateId } from '@/types/resume';
 import type { Education } from '@/types/resume';
 import {
+    validateTextRequired,
+    validateDateRequired,
+    validateDateRange,
+    validateGPA,
+} from '@/utils/validationUtils';
+import {
     DndContext,
     closestCenter,
     KeyboardSensor,
@@ -35,6 +41,9 @@ function EducationCard({ education, onUpdate, onDelete }: {
     onUpdate: (data: Partial<Education>) => void;
     onDelete: () => void;
 }) {
+    const { dispatch } = useResume();
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
     const {
         attributes,
         listeners,
@@ -48,6 +57,66 @@ function EducationCard({ education, onUpdate, onDelete }: {
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
+    };
+
+    const validateField = (field: string, value: string) => {
+        let validationResult;
+        const contextKey = `education.${education.id}.${field}`;
+
+        switch (field) {
+            case 'institution':
+                validationResult = validateTextRequired(value, 'Institution', 2);
+                break;
+            case 'degree':
+                validationResult = validateTextRequired(value, 'Degree', 2);
+                break;
+            case 'specialization':
+                validationResult = validateTextRequired(value, 'Specialization', 2);
+                break;
+            case 'startDate':
+                validationResult = validateDateRequired(value, 'Start date');
+                // Also validate date range if end date exists
+                if (validationResult.isValid && education.endDate) {
+                    const rangeResult = validateDateRange(value, education.endDate);
+                    if (!rangeResult.isValid) {
+                        // Clear end date error if range is now invalid
+                        dispatch({ type: 'SET_VALIDATION_ERROR', payload: { field: `education.${education.id}.endDate`, error: rangeResult.error || '' } });
+                    } else {
+                        dispatch({ type: 'CLEAR_VALIDATION_ERROR', payload: `education.${education.id}.endDate` });
+                    }
+                }
+                break;
+            case 'endDate':
+                validationResult = validateDateRequired(value, 'End date');
+                if (validationResult.isValid && education.startDate) {
+                    validationResult = validateDateRange(education.startDate, value);
+                }
+                break;
+            case 'gpa':
+                validationResult = validateGPA(value);
+                break;
+            default:
+                return;
+        }
+
+        if (validationResult.isValid) {
+            setFieldErrors(prev => {
+                const { [field]: _, ...rest } = prev;
+                return rest;
+            });
+            dispatch({ type: 'CLEAR_VALIDATION_ERROR', payload: contextKey });
+        } else {
+            setFieldErrors(prev => ({ ...prev, [field]: validationResult.error || '' }));
+            dispatch({
+                type: 'SET_VALIDATION_ERROR',
+                payload: { field: contextKey, error: validationResult.error || '' },
+            });
+        }
+    };
+
+    const handleInputChange = (field: keyof Education, value: string) => {
+        onUpdate({ [field]: value });
+        validateField(field, value);
     };
 
     return (
@@ -65,58 +134,82 @@ function EducationCard({ education, onUpdate, onDelete }: {
                     <div className="flex-1 space-y-3">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                                <Label className="text-xs">Institution</Label>
+                                <Label className="text-xs">Institution *</Label>
                                 <Input
                                     value={education.institution}
-                                    onChange={(e) => onUpdate({ institution: e.target.value })}
+                                    onChange={(e) => handleInputChange('institution', e.target.value)}
+                                    onBlur={() => validateField('institution', education.institution)}
                                     placeholder="University Name"
-                                    className="mt-1"
+                                    className={`mt-1 ${fieldErrors.institution ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.institution && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.institution}</p>
+                                )}
                             </div>
                             <div>
-                                <Label className="text-xs">Degree</Label>
+                                <Label className="text-xs">Degree *</Label>
                                 <Input
                                     value={education.degree}
-                                    onChange={(e) => onUpdate({ degree: e.target.value })}
+                                    onChange={(e) => handleInputChange('degree', e.target.value)}
+                                    onBlur={() => validateField('degree', education.degree)}
                                     placeholder="Bachelor of Science"
-                                    className="mt-1"
+                                    className={`mt-1 ${fieldErrors.degree ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.degree && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.degree}</p>
+                                )}
                             </div>
                             <div>
-                                <Label className="text-xs">Specialization</Label>
+                                <Label className="text-xs">Specialization *</Label>
                                 <Input
                                     value={education.specialization}
-                                    onChange={(e) => onUpdate({ specialization: e.target.value })}
+                                    onChange={(e) => handleInputChange('specialization', e.target.value)}
+                                    onBlur={() => validateField('specialization', education.specialization)}
                                     placeholder="Computer Science"
-                                    className="mt-1"
+                                    className={`mt-1 ${fieldErrors.specialization ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.specialization && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.specialization}</p>
+                                )}
                             </div>
                             <div>
                                 <Label className="text-xs">GPA (Optional)</Label>
                                 <Input
                                     value={education.gpa || ''}
-                                    onChange={(e) => onUpdate({ gpa: e.target.value })}
+                                    onChange={(e) => handleInputChange('gpa', e.target.value)}
+                                    onBlur={() => validateField('gpa', education.gpa || '')}
                                     placeholder="3.8/4.0"
-                                    className="mt-1"
+                                    className={`mt-1 ${fieldErrors.gpa ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.gpa && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.gpa}</p>
+                                )}
                             </div>
                             <div>
-                                <Label className="text-xs">Start Date</Label>
+                                <Label className="text-xs">Start Date *</Label>
                                 <Input
                                     type="month"
                                     value={education.startDate}
-                                    onChange={(e) => onUpdate({ startDate: e.target.value })}
-                                    className="mt-1"
+                                    onChange={(e) => handleInputChange('startDate', e.target.value)}
+                                    onBlur={() => validateField('startDate', education.startDate)}
+                                    className={`mt-1 ${fieldErrors.startDate ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.startDate && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.startDate}</p>
+                                )}
                             </div>
                             <div>
-                                <Label className="text-xs">End Date</Label>
+                                <Label className="text-xs">End Date *</Label>
                                 <Input
                                     type="month"
                                     value={education.endDate}
-                                    onChange={(e) => onUpdate({ endDate: e.target.value })}
-                                    className="mt-1"
+                                    onChange={(e) => handleInputChange('endDate', e.target.value)}
+                                    onBlur={() => validateField('endDate', education.endDate)}
+                                    className={`mt-1 ${fieldErrors.endDate ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.endDate && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.endDate}</p>
+                                )}
                             </div>
                         </div>
                     </div>

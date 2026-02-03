@@ -10,6 +10,10 @@ import { Plus, GripVertical, Trash2, Github, ExternalLink, X } from 'lucide-reac
 import { generateId } from '@/types/resume';
 import type { Project } from '@/types/resume';
 import {
+    validateTextRequired,
+    validateUrl,
+} from '@/utils/validationUtils';
+import {
     DndContext,
     closestCenter,
     KeyboardSensor,
@@ -44,8 +48,10 @@ function ProjectCard({ project, onUpdate, onDelete }: {
     onUpdate: (data: Partial<Project>) => void;
     onDelete: () => void;
 }) {
+    const { dispatch } = useResume();
     const [newTech, setNewTech] = useState('');
     const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const {
         attributes,
@@ -79,17 +85,15 @@ function ProjectCard({ project, onUpdate, onDelete }: {
         const techName = tech || newTech.trim();
         if (!techName || project.techStack.includes(techName)) return;
 
-        onUpdate({
-            techStack: [...project.techStack, techName],
-        });
+        const updatedTechStack = [...project.techStack, techName];
+        handleTechChange(updatedTechStack);
         setNewTech('');
         setFilteredSuggestions([]);
     };
 
     const handleRemoveTech = (tech: string) => {
-        onUpdate({
-            techStack: project.techStack.filter(t => t !== tech),
-        });
+        const updatedTechStack = project.techStack.filter(t => t !== tech);
+        handleTechChange(updatedTechStack);
     };
 
     const isValidUrl = (url: string) => {
@@ -100,6 +104,60 @@ function ProjectCard({ project, onUpdate, onDelete }: {
         } catch {
             return false;
         }
+    };
+
+    const validateField = (field: string, value: string) => {
+        let validationResult;
+        const contextKey = `project.${project.id}.${field}`;
+
+        switch (field) {
+            case 'title':
+                validationResult = validateTextRequired(value, 'Title', 3);
+                break;
+            case 'description':
+                validationResult = validateTextRequired(value, 'Description', 20);
+                break;
+            case 'githubUrl':
+                validationResult = validateUrl(value, 'GitHub URL');
+                break;
+            case 'liveUrl':
+                validationResult = validateUrl(value, 'Live URL');
+                break;
+            case 'techStack':
+                // Check if at least one tech exists
+                if (project.techStack.length === 0) {
+                    validationResult = { isValid: false, error: 'Add at least one technology' };
+                } else {
+                    validationResult = { isValid: true };
+                }
+                break;
+            default:
+                return;
+        }
+
+        if (validationResult.isValid) {
+            setFieldErrors(prev => {
+                const { [field]: _, ...rest } = prev;
+                return rest;
+            });
+            dispatch({ type: 'CLEAR_VALIDATION_ERROR', payload: contextKey });
+        } else {
+            setFieldErrors(prev => ({ ...prev, [field]: validationResult.error || '' }));
+            dispatch({
+                type: 'SET_VALIDATION_ERROR',
+                payload: { field: contextKey, error: validationResult.error || '' },
+            });
+        }
+    };
+
+    const handleInputChange = (field: keyof Project, value: string) => {
+        onUpdate({ [field]: value });
+        validateField(field, value);
+    };
+
+    const handleTechChange = (techStack: string[]) => {
+        onUpdate({ techStack });
+        validateField('techStack', ''); // Trigger tech stack validation
     };
 
     return (
@@ -116,27 +174,35 @@ function ProjectCard({ project, onUpdate, onDelete }: {
 
                     <div className="flex-1 space-y-3">
                         <div>
-                            <Label className="text-xs">Project Title</Label>
+                            <Label className="text-xs">Project Title *</Label>
                             <Input
                                 value={project.title}
-                                onChange={(e) => onUpdate({ title: e.target.value })}
+                                onChange={(e) => handleInputChange('title', e.target.value)}
+                                onBlur={() => validateField('title', project.title)}
                                 placeholder="My Awesome Project"
-                                className="mt-1"
+                                className={`mt-1 ${fieldErrors.title ? 'border-destructive' : ''}`}
                             />
+                            {fieldErrors.title && (
+                                <p className="text-xs text-destructive mt-1">{fieldErrors.title}</p>
+                            )}
                         </div>
 
                         <div>
-                            <Label className="text-xs">Description</Label>
+                            <Label className="text-xs">Description *</Label>
                             <Textarea
                                 value={project.description}
-                                onChange={(e) => onUpdate({ description: e.target.value })}
+                                onChange={(e) => handleInputChange('description', e.target.value)}
+                                onBlur={() => validateField('description', project.description)}
                                 placeholder="Brief description of what the project does and your role..."
-                                className="mt-1 min-h-[80px]"
+                                className={`mt-1 min-h-[80px] ${fieldErrors.description ? 'border-destructive' : ''}`}
                             />
+                            {fieldErrors.description && (
+                                <p className="text-xs text-destructive mt-1">{fieldErrors.description}</p>
+                            )}
                         </div>
 
                         <div>
-                            <Label className="text-xs">Tech Stack</Label>
+                            <Label className="text-xs">Tech Stack * (At least 1 required)</Label>
                             <div className="mt-2 flex flex-wrap gap-2 mb-2">
                                 {project.techStack.map((tech) => (
                                     <Badge key={tech} variant="secondary" className="pl-3 pr-1 py-1">
@@ -177,6 +243,9 @@ function ProjectCard({ project, onUpdate, onDelete }: {
                                     </div>
                                 )}
                             </div>
+                            {fieldErrors.techStack && (
+                                <p className="text-xs text-destructive mt-1">{fieldErrors.techStack}</p>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -187,10 +256,14 @@ function ProjectCard({ project, onUpdate, onDelete }: {
                                 </Label>
                                 <Input
                                     value={project.githubUrl || ''}
-                                    onChange={(e) => onUpdate({ githubUrl: e.target.value })}
+                                    onChange={(e) => handleInputChange('githubUrl', e.target.value)}
+                                    onBlur={() => validateField('githubUrl', project.githubUrl || '')}
                                     placeholder="https://github.com/username/repo"
-                                    className={`mt-1 ${project.githubUrl && !isValidUrl(project.githubUrl) ? 'border-destructive' : ''}`}
+                                    className={`mt-1 ${fieldErrors.githubUrl ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.githubUrl && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.githubUrl}</p>
+                                )}
                             </div>
                             <div>
                                 <Label className="text-xs flex items-center gap-1">
@@ -199,10 +272,14 @@ function ProjectCard({ project, onUpdate, onDelete }: {
                                 </Label>
                                 <Input
                                     value={project.liveUrl || ''}
-                                    onChange={(e) => onUpdate({ liveUrl: e.target.value })}
+                                    onChange={(e) => handleInputChange('liveUrl', e.target.value)}
+                                    onBlur={() => validateField('liveUrl', project.liveUrl || '')}
                                     placeholder="https://myproject.com"
-                                    className={`mt-1 ${project.liveUrl && !isValidUrl(project.liveUrl) ? 'border-destructive' : ''}`}
+                                    className={`mt-1 ${fieldErrors.liveUrl ? 'border-destructive' : ''}`}
                                 />
+                                {fieldErrors.liveUrl && (
+                                    <p className="text-xs text-destructive mt-1">{fieldErrors.liveUrl}</p>
+                                )}
                             </div>
                         </div>
                     </div>

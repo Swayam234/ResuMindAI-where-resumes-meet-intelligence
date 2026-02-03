@@ -1,9 +1,11 @@
+import { useEffect, useState } from 'react';
 import { useResume } from '@/contexts/ResumeContext';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Linkedin, Github, Globe, Code, Trophy, Twitter } from 'lucide-react';
+import { validateUrl } from '@/utils/validationUtils';
 
 interface LinksStepProps {
     onNext: () => void;
@@ -22,23 +24,52 @@ const socialPlatforms = [
 export default function LinksStep({ onNext, onBack }: LinksStepProps) {
     const { state, dispatch } = useResume();
     const { socialLinks } = state.resumeData;
+    const [urlErrors, setUrlErrors] = useState<Record<string, string>>({});
 
     const handleChange = (key: keyof typeof socialLinks, value: string) => {
         dispatch({
             type: 'UPDATE_SOCIAL_LINKS',
             payload: { [key]: value },
         });
+
+        // Validate on change
+        validateUrlField(key, value);
     };
 
-    const isValidUrl = (url: string) => {
-        if (!url) return true;
-        try {
-            new URL(url);
-            return true;
-        } catch {
-            return false;
+    const validateUrlField = (key: string, url: string) => {
+        const platform = socialPlatforms.find(p => p.key === key);
+        const fieldName = platform?.label || 'URL';
+
+        const validationResult = validateUrl(url, fieldName);
+
+        if (validationResult.isValid) {
+            // Clear error from local state
+            setUrlErrors(prev => {
+                const { [key]: _, ...rest } = prev;
+                return rest;
+            });
+            // Clear error from global context
+            dispatch({ type: 'CLEAR_VALIDATION_ERROR', payload: `socialLinks.${key}` });
+        } else if (url.trim() !== '') {
+            // Only show error if URL is not empty (URLs are optional)
+            // Set error in local state
+            setUrlErrors(prev => ({ ...prev, [key]: validationResult.error || '' }));
+            // Set error in global context
+            dispatch({
+                type: 'SET_VALIDATION_ERROR',
+                payload: { field: `socialLinks.${key}`, error: validationResult.error || '' },
+            });
         }
     };
+
+    // Validate all URLs on mount if they exist
+    useEffect(() => {
+        Object.entries(socialLinks).forEach(([key, value]) => {
+            if (value && value.trim() !== '') {
+                validateUrlField(key, value);
+            }
+        });
+    }, []); // Run only once on mount
 
     const hasAtLeastOneLink = Object.values(socialLinks).some(link => link && link.trim() !== '');
 
@@ -55,7 +86,7 @@ export default function LinksStep({ onNext, onBack }: LinksStepProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {socialPlatforms.map(({ key, label, icon: Icon, placeholder }) => {
                         const value = socialLinks[key] || '';
-                        const isValid = isValidUrl(value);
+                        const error = urlErrors[key];
 
                         return (
                             <div key={key}>
@@ -69,11 +100,12 @@ export default function LinksStep({ onNext, onBack }: LinksStepProps) {
                                     type="url"
                                     value={value}
                                     onChange={(e) => handleChange(key, e.target.value)}
+                                    onBlur={() => validateUrlField(key, value)}
                                     placeholder={placeholder}
-                                    className={`mt-1 ${!isValid ? 'border-destructive' : ''}`}
+                                    className={`mt-1 ${error ? 'border-destructive' : ''}`}
                                 />
-                                {!isValid && value && (
-                                    <p className="text-xs text-destructive mt-1">Please enter a valid URL</p>
+                                {error && (
+                                    <p className="text-xs text-destructive mt-1">{error}</p>
                                 )}
                             </div>
                         );
@@ -87,6 +119,7 @@ export default function LinksStep({ onNext, onBack }: LinksStepProps) {
                         <li>• Add your GitHub to highlight your coding projects</li>
                         <li>• Portfolio websites make a great impression for creative roles</li>
                         <li>• Competitive programming profiles (LeetCode, Kaggle) are great for tech roles</li>
+                        <li>• All URLs must start with https:// for security</li>
                     </ul>
                 </div>
 

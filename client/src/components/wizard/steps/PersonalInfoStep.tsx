@@ -7,6 +7,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Wand2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+    validateFullName,
+    validateJobTitle,
+    validateEmail,
+    validatePhone,
+    validateLocation,
+    sanitizeAlphabetsAndSpaces,
+    sanitizeDigits,
+} from '@/utils/validationUtils';
 
 interface PersonalInfoStepProps {
     onNext: () => void;
@@ -17,12 +26,72 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
     const { personal } = state.resumeData;
     const { toast } = useToast();
     const [isGenerating, setIsGenerating] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const handleChange = (field: keyof typeof personal, value: string) => {
         dispatch({
             type: 'UPDATE_PERSONAL',
             payload: { [field]: value },
         });
+    };
+
+    const validateField = (field: keyof typeof personal, value: string) => {
+        let validationResult;
+
+        switch (field) {
+            case 'fullName':
+                validationResult = validateFullName(value);
+                break;
+            case 'jobTitle':
+                validationResult = validateJobTitle(value);
+                break;
+            case 'email':
+                validationResult = validateEmail(value);
+                break;
+            case 'phone':
+                validationResult = validatePhone(value);
+                break;
+            case 'location':
+                validationResult = validateLocation(value);
+                break;
+            default:
+                return;
+        }
+
+        if (validationResult.isValid) {
+            // Clear error from local state
+            setFieldErrors(prev => {
+                const { [field]: _, ...rest } = prev;
+                return rest;
+            });
+            // Clear error from global context
+            dispatch({ type: 'CLEAR_VALIDATION_ERROR', payload: `personal.${field}` });
+        } else {
+            // Set error in local state
+            setFieldErrors(prev => ({ ...prev, [field]: validationResult.error || '' }));
+            // Set error in global context
+            dispatch({
+                type: 'SET_VALIDATION_ERROR',
+                payload: { field: `personal.${field}`, error: validationResult.error || '' },
+            });
+        }
+    };
+
+    const handleInputChange = (field: keyof typeof personal, value: string, sanitize?: 'alpha' | 'digits') => {
+        let sanitizedValue = value;
+
+        if (sanitize === 'alpha') {
+            sanitizedValue = sanitizeAlphabetsAndSpaces(value);
+        } else if (sanitize === 'digits') {
+            sanitizedValue = sanitizeDigits(value);
+            // Limit phone to 10 digits
+            if (sanitizedValue.length > 10) {
+                sanitizedValue = sanitizedValue.slice(0, 10);
+            }
+        }
+
+        handleChange(field, sanitizedValue);
+        validateField(field, sanitizedValue);
     };
 
     const handleGenerateSummary = async () => {
@@ -67,13 +136,16 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
     };
 
     const isValid = () => {
-        return (
+        const hasRequiredFields =
             personal.fullName.trim() !== '' &&
             personal.jobTitle.trim() !== '' &&
             personal.email.trim() !== '' &&
             personal.phone.trim() !== '' &&
-            personal.location.trim() !== ''
-        );
+            personal.location.trim() !== '';
+
+        const hasNoErrors = Object.keys(fieldErrors).length === 0;
+
+        return hasRequiredFields && hasNoErrors;
     };
 
     const summaryLength = personal.professionalSummary.length;
@@ -97,10 +169,14 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                         <Input
                             id="fullName"
                             value={personal.fullName}
-                            onChange={(e) => handleChange('fullName', e.target.value)}
+                            onChange={(e) => handleInputChange('fullName', e.target.value, 'alpha')}
+                            onBlur={() => validateField('fullName', personal.fullName)}
                             placeholder="John Doe"
-                            className="mt-1"
+                            className={`mt-1 ${fieldErrors.fullName ? 'border-destructive' : ''}`}
                         />
+                        {fieldErrors.fullName && (
+                            <p className="text-xs text-destructive mt-1">{fieldErrors.fullName}</p>
+                        )}
                     </div>
 
                     <div>
@@ -110,10 +186,14 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                         <Input
                             id="jobTitle"
                             value={personal.jobTitle}
-                            onChange={(e) => handleChange('jobTitle', e.target.value)}
+                            onChange={(e) => handleInputChange('jobTitle', e.target.value, 'alpha')}
+                            onBlur={() => validateField('jobTitle', personal.jobTitle)}
                             placeholder="Software Engineer"
-                            className="mt-1"
+                            className={`mt-1 ${fieldErrors.jobTitle ? 'border-destructive' : ''}`}
                         />
+                        {fieldErrors.jobTitle && (
+                            <p className="text-xs text-destructive mt-1">{fieldErrors.jobTitle}</p>
+                        )}
                     </div>
 
                     <div>
@@ -124,10 +204,17 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                             id="email"
                             type="email"
                             value={personal.email}
-                            onChange={(e) => handleChange('email', e.target.value)}
+                            onChange={(e) => {
+                                handleChange('email', e.target.value);
+                                validateField('email', e.target.value);
+                            }}
+                            onBlur={() => validateField('email', personal.email)}
                             placeholder="john.doe@example.com"
-                            className="mt-1"
+                            className={`mt-1 ${fieldErrors.email ? 'border-destructive' : ''}`}
                         />
+                        {fieldErrors.email && (
+                            <p className="text-xs text-destructive mt-1">{fieldErrors.email}</p>
+                        )}
                     </div>
 
                     <div>
@@ -138,10 +225,15 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                             id="phone"
                             type="tel"
                             value={personal.phone}
-                            onChange={(e) => handleChange('phone', e.target.value)}
-                            placeholder="+1 (555) 123-4567"
-                            className="mt-1"
+                            onChange={(e) => handleInputChange('phone', e.target.value, 'digits')}
+                            onBlur={() => validateField('phone', personal.phone)}
+                            placeholder="1234567890"
+                            className={`mt-1 ${fieldErrors.phone ? 'border-destructive' : ''}`}
+                            maxLength={10}
                         />
+                        {fieldErrors.phone && (
+                            <p className="text-xs text-destructive mt-1">{fieldErrors.phone}</p>
+                        )}
                     </div>
 
                     <div className="md:col-span-2">
@@ -151,10 +243,17 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                         <Input
                             id="location"
                             value={personal.location}
-                            onChange={(e) => handleChange('location', e.target.value)}
+                            onChange={(e) => {
+                                handleChange('location', e.target.value);
+                                validateField('location', e.target.value);
+                            }}
+                            onBlur={() => validateField('location', personal.location)}
                             placeholder="San Francisco, CA"
-                            className="mt-1"
+                            className={`mt-1 ${fieldErrors.location ? 'border-destructive' : ''}`}
                         />
+                        {fieldErrors.location && (
+                            <p className="text-xs text-destructive mt-1">{fieldErrors.location}</p>
+                        )}
                     </div>
                 </div>
 
@@ -196,10 +295,10 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                         </p>
                         <span
                             className={`text-xs font-medium ${summaryLength > maxLength * 0.9
-                                    ? 'text-destructive'
-                                    : summaryLength > maxLength * 0.7
-                                        ? 'text-yellow-600'
-                                        : 'text-muted-foreground'
+                                ? 'text-destructive'
+                                : summaryLength > maxLength * 0.7
+                                    ? 'text-yellow-600'
+                                    : 'text-muted-foreground'
                                 }`}
                         >
                             {summaryLength}/{maxLength}

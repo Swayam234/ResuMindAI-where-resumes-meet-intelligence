@@ -15,6 +15,7 @@ import {
 import { Plus, X } from 'lucide-react';
 import { generateId, SkillCategory, SkillLevel } from '@/types/resume';
 import type { Skill } from '@/types/resume';
+import { validateSkill, sanitizeAlphabetsAndSpaces } from '@/utils/validationUtils';
 
 interface SkillsStepProps {
     onNext: () => void;
@@ -55,12 +56,24 @@ export default function SkillsStep({ onNext, onBack }: SkillsStepProps) {
     const [selectedCategory, setSelectedCategory] = useState<SkillCategory>('programming');
     const [selectedLevel, setSelectedLevel] = useState<SkillLevel>('intermediate');
     const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+    const [skillError, setSkillError] = useState('');
 
     const handleInputChange = (value: string) => {
-        setNewSkillName(value);
-        if (value.trim()) {
+        // Sanitize input to allow only alphabets and spaces
+        const sanitizedValue = sanitizeAlphabetsAndSpaces(value);
+        setNewSkillName(sanitizedValue);
+
+        // Validate the skill name
+        const validation = validateSkill(sanitizedValue);
+        if (!validation.isValid && sanitizedValue.trim() !== '') {
+            setSkillError(validation.error || '');
+        } else {
+            setSkillError('');
+        }
+
+        if (sanitizedValue.trim()) {
             const suggestions = skillSuggestions[selectedCategory].filter(skill =>
-                skill.toLowerCase().includes(value.toLowerCase())
+                skill.toLowerCase().includes(sanitizedValue.toLowerCase())
             );
             setFilteredSuggestions(suggestions);
         } else {
@@ -72,8 +85,16 @@ export default function SkillsStep({ onNext, onBack }: SkillsStepProps) {
         const name = skillName || newSkillName.trim();
         if (!name) return;
 
+        // Validate skill name
+        const validation = validateSkill(name);
+        if (!validation.isValid) {
+            setSkillError(validation.error || 'Invalid skill name');
+            return;
+        }
+
         // Check if skill already exists
         if (skills.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+            setSkillError('This skill has already been added');
             return;
         }
 
@@ -87,6 +108,7 @@ export default function SkillsStep({ onNext, onBack }: SkillsStepProps) {
         dispatch({ type: 'ADD_SKILL', payload: newSkill });
         setNewSkillName('');
         setFilteredSuggestions([]);
+        setSkillError('');
     };
 
     const handleDeleteSkill = (id: string) => {
@@ -155,7 +177,7 @@ export default function SkillsStep({ onNext, onBack }: SkillsStepProps) {
                                         onChange={(e) => handleInputChange(e.target.value)}
                                         onKeyPress={handleKeyPress}
                                         placeholder="Type or select a skill..."
-                                        className="mt-1"
+                                        className={`mt-1 ${skillError ? 'border-destructive' : ''}`}
                                     />
                                     {filteredSuggestions.length > 0 && (
                                         <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-auto">
@@ -171,6 +193,9 @@ export default function SkillsStep({ onNext, onBack }: SkillsStepProps) {
                                         </div>
                                     )}
                                 </div>
+                                {skillError && (
+                                    <p className="text-xs text-destructive mt-1">{skillError}</p>
+                                )}
                             </div>
 
                             <div>

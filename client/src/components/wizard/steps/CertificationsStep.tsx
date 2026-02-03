@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from 'lucide-react';
 import { generateId } from '@/types/resume';
 import type { Certification } from '@/types/resume';
+import {
+    validateTextRequired,
+    validateNotFutureDate,
+} from '@/utils/validationUtils';
 
 interface CertificationsStepProps {
     onNext: () => void;
@@ -18,36 +22,88 @@ function CertificationCard({ certification, onUpdate, onDelete }: {
     onUpdate: (data: Partial<Certification>) => void;
     onDelete: () => void;
 }) {
+    const { dispatch } = useResume();
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+    const validateField = (field: string, value: string) => {
+        let validationResult;
+        const contextKey = `certification.${certification.id}.${field}`;
+
+        switch (field) {
+            case 'name':
+                validationResult = validateTextRequired(value, 'Certification name', 3);
+                break;
+            case 'issuer':
+                validationResult = validateTextRequired(value, 'Issuing organization', 2);
+                break;
+            case 'date':
+                validationResult = validateNotFutureDate(value, 'Date obtained');
+                break;
+            default:
+                return;
+        }
+
+        if (validationResult.isValid) {
+            setFieldErrors(prev => {
+                const { [field]: _, ...rest } = prev;
+                return rest;
+            });
+            dispatch({ type: 'CLEAR_VALIDATION_ERROR', payload: contextKey });
+        } else {
+            setFieldErrors(prev => ({ ...prev, [field]: validationResult.error || '' }));
+            dispatch({
+                type: 'SET_VALIDATION_ERROR',
+                payload: { field: contextKey, error: validationResult.error || '' },
+            });
+        }
+    };
+
+    const handleInputChange = (field: keyof Certification, value: string) => {
+        onUpdate({ [field]: value });
+        validateField(field, value);
+    };
     return (
         <Card className="p-4 hover:shadow-sm transition-shadow">
             <div className="flex gap-3">
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
-                        <Label className="text-xs">Certification Name</Label>
+                        <Label className="text-xs">Certification Name *</Label>
                         <Input
                             value={certification.name}
-                            onChange={(e) => onUpdate({ name: e.target.value })}
+                            onChange={(e) => handleInputChange('name', e.target.value)}
+                            onBlur={() => validateField('name', certification.name)}
                             placeholder="AWS Certified Developer"
-                            className="mt-1"
+                            className={`mt-1 ${fieldErrors.name ? 'border-destructive' : ''}`}
                         />
+                        {fieldErrors.name && (
+                            <p className="text-xs text-destructive mt-1">{fieldErrors.name}</p>
+                        )}
                     </div>
                     <div>
-                        <Label className="text-xs">Issuing Organization</Label>
+                        <Label className="text-xs">Issuing Organization *</Label>
                         <Input
                             value={certification.issuer}
-                            onChange={(e) => onUpdate({ issuer: e.target.value })}
+                            onChange={(e) => handleInputChange('issuer', e.target.value)}
+                            onBlur={() => validateField('issuer', certification.issuer)}
                             placeholder="Amazon Web Services"
-                            className="mt-1"
+                            className={`mt-1 ${fieldErrors.issuer ? 'border-destructive' : ''}`}
                         />
+                        {fieldErrors.issuer && (
+                            <p className="text-xs text-destructive mt-1">{fieldErrors.issuer}</p>
+                        )}
                     </div>
                     <div>
-                        <Label className="text-xs">Date Obtained</Label>
+                        <Label className="text-xs">Date Obtained *</Label>
                         <Input
                             type="month"
                             value={certification.date}
-                            onChange={(e) => onUpdate({ date: e.target.value })}
-                            className="mt-1"
+                            onChange={(e) => handleInputChange('date', e.target.value)}
+                            onBlur={() => validateField('date', certification.date)}
+                            className={`mt-1 ${fieldErrors.date ? 'border-destructive' : ''}`}
                         />
+                        {fieldErrors.date && (
+                            <p className="text-xs text-destructive mt-1">{fieldErrors.date}</p>
+                        )}
                     </div>
                 </div>
 
