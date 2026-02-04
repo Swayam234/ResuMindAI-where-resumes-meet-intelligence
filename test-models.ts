@@ -16,12 +16,12 @@ async function testModels() {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-        console.error("❌ GEMINI_API_KEY not found");
+        console.error("GEMINI_API_KEY not found");
         return;
     }
 
-    console.log(`✅ API Key: ${apiKey.substring(0, 10)}...\n`);
-    console.log("🧪 Testing models...\n");
+    console.log(`API Key: ${apiKey.substring(0, 10)}...\n`);
+    console.log("Testing models...\n");
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const workingModels: string[] = [];
@@ -34,20 +34,20 @@ async function testModels() {
             const response = await result.response;
             const text = response.text();
 
-            console.log(`   ✅ SUCCESS! Response: "${text.trim()}"\n`);
+            console.log(`SUCCESS! Response: "${text.trim()}"\n`);
             workingModels.push(modelName);
         } catch (error: any) {
-            console.log(`   ❌ FAILED: ${error.message?.substring(0, 80) || "Unknown error"}\n`);
+            console.log(`FAILED: ${error.message?.substring(0, 80) || "Unknown error"}\n`);
         }
     }
 
     console.log("\n" + "=".repeat(60));
     if (workingModels.length > 0) {
-        console.log(`\n✅ WORKING MODELS (${workingModels.length}):\n`);
+        console.log(`\n WORKING MODELS (${workingModels.length}):\n`);
         workingModels.forEach(m => console.log(`   - ${m}`));
-        console.log(`\n💡 RECOMMENDED: Use "${workingModels[0]}" in your code\n`);
+        console.log(`\n RECOMMENDED: Use "${workingModels[0]}" in your code\n`);
     } else {
-        console.log("\n❌ No working models found. Check your API key.\n");
+        console.log("\n No working models found. Check your API key.\n");
     }
     console.log("=".repeat(60) + "\n");
 }
