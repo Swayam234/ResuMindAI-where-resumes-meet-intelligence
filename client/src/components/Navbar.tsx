@@ -24,44 +24,44 @@ export default function Navbar() {
 
           <nav className="hidden md:flex items-center gap-1">
             <Link href="/" data-testid="link-home">
-              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${
-                isActive("/") ? "bg-primary/10 text-primary" : "text-foreground"
-              }`}>
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${isActive("/") ? "bg-primary/10 text-primary" : "text-foreground"
+                }`}>
                 Home
               </div>
             </Link>
             <Link href="/resume-generator" data-testid="link-resume-generator">
-              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${
-                isActive("/resume-generator") ? "bg-primary/10 text-primary" : "text-foreground"
-              }`}>
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${isActive("/resume-generator") ? "bg-primary/10 text-primary" : "text-foreground"
+                }`}>
                 Resume Generator
               </div>
             </Link>
             <Link href="/resume-screening" data-testid="link-resume-screening">
-              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${
-                isActive("/resume-screening") ? "bg-primary/10 text-primary" : "text-foreground"
-              }`}>
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${isActive("/resume-screening") ? "bg-primary/10 text-primary" : "text-foreground"
+                }`}>
                 Resume Screening
               </div>
             </Link>
             <Link href="/cv-generator" data-testid="link-cv-generator">
-              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${
-                isActive("/cv-generator") ? "bg-primary/10 text-primary" : "text-foreground"
-              }`}>
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${isActive("/cv-generator") ? "bg-primary/10 text-primary" : "text-foreground"
+                }`}>
                 CV Generator
               </div>
             </Link>
+            <Link href="/mock-interview" data-testid="link-mock-interview">
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${isActive("/mock-interview") ? "bg-primary/10 text-primary" : "text-foreground"
+                }`}>
+                Mock Interview
+              </div>
+            </Link>
             <Link href="/about" data-testid="link-about">
-              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${
-                isActive("/about") ? "bg-primary/10 text-primary" : "text-foreground"
-              }`}>
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${isActive("/about") ? "bg-primary/10 text-primary" : "text-foreground"
+                }`}>
                 About
               </div>
             </Link>
             <Link href="/contact" data-testid="link-contact">
-              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${
-                isActive("/contact") ? "bg-primary/10 text-primary" : "text-foreground"
-              }`}>
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate active-elevate-2 cursor-pointer ${isActive("/contact") ? "bg-primary/10 text-primary" : "text-foreground"
+                }`}>
                 Contact
               </div>
             </Link>

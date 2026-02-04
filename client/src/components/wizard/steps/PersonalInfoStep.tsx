@@ -151,8 +151,7 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
         return hasRequiredFields && hasNoErrors;
     };
 
-    const summaryLength = personal.professionalSummary.length;
-    const maxLength = 500;
+
 
     return (
         <Card className="p-6">
@@ -287,22 +286,11 @@ export default function PersonalInfoStep({ onNext }: PersonalInfoStepProps) {
                         onChange={(e) => handleChange('professionalSummary', e.target.value)}
                         placeholder="A brief summary highlighting your key strengths and career objectives..."
                         className="mt-1 min-h-[120px]"
-                        maxLength={maxLength}
                     />
                     <div className="flex justify-between items-center mt-1">
                         <p className="text-xs text-muted-foreground">
                             Write a compelling summary that highlights your expertise
                         </p>
-                        <span
-                            className={`text-xs font-medium ${summaryLength > maxLength * 0.9
-                                ? 'text-destructive'
-                                : summaryLength > maxLength * 0.7
-                                    ? 'text-yellow-600'
-                                    : 'text-muted-foreground'
-                                }`}
-                        >
-                            {summaryLength}/{maxLength}
-                        </span>
                     </div>
                 </div>
 

@@ -12,6 +12,9 @@ import ResumeScreening from "@/pages/ResumeScreening";
 import CVGenerator from "@/pages/CVGenerator";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
+import MockInterviewDashboard from "@/pages/Interview/MockInterviewDashboard";
+import InterviewSession from "@/pages/Interview/InterviewSession";
+import InterviewResult from "@/pages/Interview/InterviewResult";
 
 function Router() {
   return (
@@ -23,6 +26,9 @@ function Router() {
       <Route path="/cv-generator" component={CVGenerator} />
       <Route path="/about" component={About} />
       <Route path="/contact" component={Contact} />
+      <Route path="/mock-interview" component={MockInterviewDashboard} />
+      <Route path="/mock-interview/:id" component={InterviewSession} />
+      <Route path="/mock-interview/:id/result" component={InterviewResult} />
       <Route component={NotFound} />
     </Switch>
   );
