@@ -7,11 +7,11 @@ async function testGemini() {
     console.log("Checking API Key setup...");
 
     if (!apiKey) {
-        console.error("❌ ERROR: GEMINI_API_KEY is missing from environment/process.");
+        console.error(" ERROR: GEMINI_API_KEY is missing from environment/process.");
         return;
     }
 
-    console.log(`✅ API Key found: ${apiKey.substring(0, 5)}...${apiKey.slice(-4)}`);
+    console.log(`API Key found: ${apiKey.substring(0, 5)}...${apiKey.slice(-4)}`);
 
     try {
         console.log("Initializing Gemini Client...");
@@ -25,7 +25,7 @@ async function testGemini() {
         const response = await result.response;
         const text = response.text();
 
-        console.log("✅ SUCCESS! Response from Gemini:");
+        console.log("SUCCESS! Response from Gemini:");
         console.log(text);
     } catch (error: any) {
         console.error("API CALL FAILED");
